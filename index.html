@@ -11,7 +11,7 @@
             color: #4b2e2e;
             text-align: center;
             padding: 20px;
-            transition: background 0.3s, color 0.3s;
+            transition: all 0.3s;
         }
         .card {
             background: #fffaf0;
@@ -19,22 +19,23 @@
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             max-width: 600px;
-            margin: auto;
-            opacity: 0;
-            transition: opacity 0.5s;
+            margin: 20px auto;
+            opacity: 1;
+            transition: all 0.3s;
         }
         .ayah-arabic {
             font-size: 1.8rem;
-            margin-bottom: 10px;
+            margin: 15px 0;
             direction: rtl;
         }
         .ayah-english {
             font-size: 1.2rem;
-            margin-bottom: 5px;
+            margin: 15px 0;
         }
         .reference {
             font-size: 1rem;
             color: #7b5e5e;
+            margin: 15px 0;
         }
         .button {
             margin: 10px 5px;
@@ -44,107 +45,119 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.2s;
         }
         .button:hover {
             background: #5e4545;
             transform: scale(1.05);
         }
-        .dark-mode {
-            background: #2b2b2b;
-            color: #f5f5f5;
-        }
-        .dark-mode .card {
-            background: #3c3c3c;
-        }
-        .search-container {
-            margin-top: 20px;
-        }
-        .search-input {
+        .dark-mode { background: #2b2b2b; color: #f5f5f5; }
+        .dark-mode .card { background: #3c3c3c; }
+        .search-box {
             padding: 8px;
             margin: 5px;
             border: 1px solid #7b5e5e;
             border-radius: 6px;
+            width: 200px;
         }
     </style>
 </head>
 <body>
-    <div class="card" id="card">
+    <div class="card">
         <div class="ayah-arabic" id="ayah-arabic">Loading...</div>
         <div class="ayah-english" id="ayah-english"></div>
         <div class="reference" id="reference"></div>
-
-        <div class="search-container">
-            <input type="text" id="surahSearchInput" class="search-input" placeholder="Enter Surah Name">
-            <button class="button" onclick="searchSurahByName()">View Full Surah</button>
-        </div>
-
-        <button class="button" onclick="loadRandomAyah()">Load Random Verse</button>
-        <button class="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
-        <a id="whatsapp-share" class="button" href="#" target="_blank">Share on WhatsApp</a>
+        
+        <input type="text" id="surah-input" class="search-box" placeholder="Enter Surah number (1-114)">
+        <button class="button" onclick="fetchSurah()">Get Surah</button>
+        <button class="button" onclick="loadRandomAyah()">Random Verse</button>
+        <button class="button" onclick="toggleDarkMode()">Dark Mode</button>
+        <a id="share-btn" class="button" href="#" target="_blank">Share</a>
     </div>
 
-    <script>
-        const surahs = {
-            "ikhlas": {
-                arabic: "قُلْ هُوَ اللَّهُ أَحَدٌ اللَّهُ الصَّمَدُ لَمْ يَلِدْ وَلَمْ يُولَدْ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ",
-                english: "Say, He is Allah, [Who is] One. Allah, the Eternal Refuge. He neither begets nor is born, Nor is there to Him any equivalent.",
-                reference: "Surah Al-Ikhlas"
+<script>
+    // Simplified data storage
+    const quranData = {
+        ayahs: [
+            {
+                arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', 
+                english: 'In the name of Allah, the Entirely Merciful, the Especially Merciful.', 
+                reference: 'Al-Fatihah 1:1'
             },
-            "kawthar": {
-                arabic: "إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ فَصَلِّ لِرَبِّكَ وَانْحَرْ إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ",
-                english: "Indeed, We have granted you, [O Muhammad], al-Kawthar. So pray to your Lord and sacrifice [to Him alone]. Indeed, your enemy is the one cut off.",
-                reference: "Surah Al-Kawthar"
+            {
+                arabic: 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ', 
+                english: 'All praise is due to Allah, Lord of the worlds.', 
+                reference: 'Al-Fatihah 1:2'
             },
-            "nas": {
-                arabic: "قُلْ أَعُوذُ بِرَبِّ النَّاسِ مَلِكِ النَّاسِ إِلَٰهِ النَّاسِ مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ مِنَ الْجِنَّةِ وَالنَّاسِ",
-                english: "Say, I seek refuge in the Lord of mankind, The Sovereign of mankind, The God of mankind, From the evil of the retreating whisperer, Who whispers [evil] into the breasts of mankind, From among the jinn and mankind.",
-                reference: "Surah An-Nas"
+            {
+                arabic: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ', 
+                english: 'Allah - there is no deity except Him, the Ever-Living, the Sustainer of existence.', 
+                reference: 'Al-Baqarah 2:255'
             }
-        };
+        ],
+        surahs: [
+            { number: 1, name: "Al-Fatihah", ayahs: 7 },
+            { number: 2, name: "Al-Baqarah", ayahs: 286 },
+            { number: 112, name: "Al-Ikhlas", ayahs: 4 }
+        ]
+    };
 
-        const ayahs = [
-            {arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', english: 'In the name of Allah, the Entirely Merciful, the Especially Merciful.', reference: 'Al-Fatihah (1:1)'},
-            {arabic: 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ', english: 'All praise is due to Allah, Lord of the worlds.', reference: 'Al-Fatihah (1:2)'},
-            {arabic: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ', english: 'Allah - there is no deity except Him, the Ever-Living, the Sustainer of existence.', reference: 'Al-Baqarah (2:255)'},
-            {arabic: 'إِنَّ مَعَ الْعُسْرِ يُسْرًا', english: 'Indeed, with hardship [will be] ease.', reference: 'Ash-Sharh (94:6)'},
-            {arabic: 'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ', english: 'Indeed, We have granted you, [O Muhammad], al-Kawthar.', reference: 'Al-Kawthar (108:1)'}
+    // Main display function
+    function displayContent(arabic, english, reference) {
+        document.getElementById('ayah-arabic').textContent = arabic;
+        document.getElementById('ayah-english').textContent = english;
+        document.getElementById('reference').textContent = reference;
+        
+        // Update share link
+        const shareText = `${arabic}\n${english}\n- ${reference}`;
+        document.getElementById('share-btn').href = 
+            `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+    }
+
+    // Fetch surah from API (simplified mock)
+    function fetchSurah() {
+        const surahNum = parseInt(document.getElementById('surah-input').value);
+        if (surahNum < 1 || surahNum > 114) {
+            alert("Please enter a surah number between 1-114");
+            return;
+        }
+        
+        // In a real app, you would fetch from an API here
+        const surah = quranData.surahs.find(s => s.number === surahNum);
+        if (surah) {
+            displayContent(
+                `Surah ${surah.name} (${surah.number})`, 
+                `This surah has ${surah.ayahs} verses`, 
+                `Surah ${surah.name}`
+            );
+        } else {
+            alert("Surah data not available in this demo");
+        }
+    }
+
+    // Random verse loader
+    function loadRandomAyah() {
+        const randomAyah = quranData.ayahs[
+            Math.floor(Math.random() * quranData.ayahs.length)
         ];
+        displayContent(
+            randomAyah.arabic, 
+            randomAyah.english, 
+            randomAyah.reference
+        );
+    }
 
-        function searchSurahByName() {
-            const input = document.getElementById('surahSearchInput').value.toLowerCase().trim();
-            if (surahs[input]) {
-                const surah = surahs[input];
-                displayAyah(surah.arabic, surah.english, surah.reference);
-            } else {
-                alert("Surah not found. Try 'Ikhlas', 'Kawthar', or 'Nas'.");
-            }
-        }
+    // Dark mode toggle
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+    }
 
-        function loadRandomAyah() {
-            const randomIndex = Math.floor(Math.random() * ayahs.length);
-            const ayah = ayahs[randomIndex];
-            displayAyah(ayah.arabic, ayah.english, ayah.reference);
-        }
-
-        function displayAyah(arabic, english, reference) {
-            const card = document.getElementById('card');
-            card.style.opacity = 0;
-            document.getElementById('ayah-arabic').innerText = arabic;
-            document.getElementById('ayah-english').innerText = english;
-            document.getElementById('reference').innerText = reference;
-
-            const whatsappLink = `https://wa.me/?text=${encodeURIComponent(`${arabic}\n${english}\n- ${reference}`)}`;
-            document.getElementById('whatsapp-share').href = whatsappLink;
-
-            setTimeout(() => { card.style.opacity = 1; }, 200);
-        }
-
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-        }
-
-        loadRandomAyah();
-    </script>
+    // Initialize with first verse
+    displayContent(
+        quranData.ayahs[0].arabic,
+        quranData.ayahs[0].english,
+        quranData.ayahs[0].reference
+    );
+</script>
 </body>
 </html>

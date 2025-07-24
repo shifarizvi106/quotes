@@ -81,6 +81,7 @@
 
         <button class="button" onclick="loadRandomAyah()">Load Random Verse</button>
         <button class="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+        <button class="button" onclick="shareOnWhatsApp()">Share on WhatsApp</button>
     </div>
 
     <script>
@@ -97,6 +98,12 @@
             if (!surahName) return alert("Please enter a Surah name.");
 
             try {
+                const card = document.getElementById('card');
+                card.style.opacity = 0;
+                document.getElementById('ayah-arabic').innerText = "Loading Surah...";
+                document.getElementById('ayah-english').innerText = "";
+                document.getElementById('reference').innerText = "";
+
                 const res = await fetch('https://api.quran.com/v4/chapters');
                 const data = await res.json();
                 const chapter = data.data.find(ch => ch.name_simple.toLowerCase() === surahName);
@@ -123,9 +130,6 @@
                     englishHTML += `<div>${translations[idx]?.text || ''}</div>`;
                 });
 
-                const card = document.getElementById('card');
-                card.style.opacity = 0;
-
                 document.getElementById('ayah-arabic').innerHTML = arabicHTML;
                 document.getElementById('ayah-english').innerHTML = englishHTML;
                 document.getElementById('reference').innerText = `${chapter.name_simple} (Surah ${chapterNumber})`;
@@ -133,7 +137,7 @@
                 card.style.opacity = 1;
 
             } catch (err) {
-                alert("Error fetching Surah. Please try again.");
+                alert("Error fetching Surah. Check your connection and try again.");
                 console.error(err);
             }
         }
@@ -153,6 +157,15 @@
 
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
+        }
+
+        function shareOnWhatsApp() {
+            const arabic = document.getElementById('ayah-arabic').innerText;
+            const english = document.getElementById('ayah-english').innerText;
+            const reference = document.getElementById('reference').innerText;
+            const message = `${arabic}\n${english}\n- ${reference}`;
+            const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank');
         }
 
         loadRandomAyah();

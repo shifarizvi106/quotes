@@ -22,16 +22,24 @@
             margin: 20px auto;
             transition: all 0.3s;
         }
-        .ayah-arabic {
-            font-size: 1.8rem;
-            margin: 20px 0;
-            direction: rtl;
-            line-height: 1.8;
+        .ayah-container {
+            margin: 25px 0;
+            text-align: right;
         }
-        .ayah-english {
+        .ayah-arabic {
+            font-size: 2rem;
+            direction: rtl;
+            line-height: 2.5;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .ayah-translation {
             font-size: 1.2rem;
-            margin: 20px 0;
-            line-height: 1.6;
+            line-height: 1.8;
+            margin: 15px 0;
+            text-align: left;
+            border-top: 1px dashed #e0d6c2;
+            padding-top: 15px;
         }
         .reference {
             font-size: 1rem;
@@ -62,6 +70,9 @@
         .dark-mode { background: #2b2b2b; color: #f5f5f5; }
         .dark-mode .card { background: #3c3c3c; }
         .dark-mode .reference { color: #aaaaaa; }
+        .dark-mode .ayah-translation {
+            border-top-color: #444;
+        }
         .search-container {
             margin: 20px 0;
         }
@@ -88,16 +99,16 @@
             border: 1px solid #e0d6c2;
             border-radius: 8px;
             background: #f9f5e9;
-            text-align: right;
         }
         .dark-mode .full-surah-container {
             background: #333333;
             border-color: #444;
         }
         .verse-item {
-            margin-bottom: 25px;
-            padding-bottom: 15px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
             border-bottom: 1px dashed #e0d6c2;
+            text-align: right;
         }
         .dark-mode .verse-item {
             border-bottom-color: #444;
@@ -134,14 +145,18 @@
 <body>
     <div class="card">
         <div id="single-verse-view">
-            <div class="ayah-arabic" id="ayah-arabic">Loading verse...</div>
-            <div class="ayah-english" id="ayah-english"></div>
-            <div class="reference" id="reference"></div>
+            <div class="ayah-container">
+                <div class="ayah-arabic" id="ayah-arabic">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+                <div class="ayah-translation" id="ayah-translation">In the name of Allah, the Entirely Merciful, the Especially Merciful.</div>
+            </div>
+            <div class="reference" id="reference">Al-Fatihah (1:1)</div>
         </div>
 
         <div id="full-surah-view" class="hidden">
-            <h2 id="surah-title"></h2>
-            <div class="full-surah-container" id="full-surah-container"></div>
+            <h2 id="surah-title">Al-Fatihah (الفاتحة)</h2>
+            <div class="full-surah-container" id="full-surah-container">
+                <!-- Full surah content will be loaded here -->
+            </div>
             <button class="button" onclick="backToSingleVerse()">Back to Single Verse</button>
         </div>
 
@@ -149,7 +164,7 @@
             <input type="text" id="surah-input" class="search-box" placeholder="Search Surah by name" list="surah-suggestions">
             <datalist id="surah-suggestions"></datalist>
             <button class="button" id="search-btn" onclick="searchSurah()">Search Surah</button>
-            <button class="button" id="full-surah-btn" onclick="viewFullSurah()" disabled>View Full Surah</button>
+            <button class="button" id="full-surah-btn" onclick="viewFullSurah()">View Full Surah</button>
         </div>
 
         <div>
@@ -166,7 +181,8 @@
 <script>
     // API Configuration
     const API_BASE = "https://api.alquran.cloud/v1";
-    const EDITION = "en.asad"; // English translation by Muhammad Asad
+    const ARABIC_EDITION = "ar.alafasy"; // Arabic text edition
+    const TRANSLATION_EDITION = "en.asad"; // English translation by Muhammad Asad
     
     // Current app state
     let currentState = {
@@ -178,7 +194,7 @@
     // Cache DOM elements
     const elements = {
         arabic: document.getElementById('ayah-arabic'),
-        english: document.getElementById('ayah-english'),
+        translation: document.getElementById('ayah-translation'),
         reference: document.getElementById('reference'),
         surahInput: document.getElementById('surah-input'),
         searchBtn: document.getElementById('search-btn'),
@@ -279,27 +295,38 @@
         elements.fullView.classList.remove('hidden');
         
         try {
-            // Fetch the complete surah
-            const response = await fetch(`${API_BASE}/surah/${currentState.surah.number}/${EDITION}`);
-            if (!response.ok) throw new Error('Network response was not ok');
+            // Fetch the complete surah in Arabic
+            const arabicResponse = await fetch(`${API_BASE}/surah/${currentState.surah.number}/${ARABIC_EDITION}`);
+            if (!arabicResponse.ok) throw new Error('Failed to load Arabic text');
             
-            const data = await response.json();
-            const surah = data.data;
+            // Fetch the complete surah in English
+            const translationResponse = await fetch(`${API_BASE}/surah/${currentState.surah.number}/${TRANSLATION_EDITION}`);
+            if (!translationResponse.ok) throw new Error('Failed to load translation');
+            
+            const arabicData = await arabicResponse.json();
+            const translationData = await translationResponse.json();
+            
+            const arabicSurah = arabicData.data;
+            const translationSurah = translationData.data;
             
             // Display surah title
-            elements.surahTitle.textContent = `${surah.englishName} (${surah.name}) - ${surah.numberOfAyahs} verses`;
+            elements.surahTitle.textContent = `${arabicSurah.englishName} (${arabicSurah.name}) - ${arabicSurah.numberOfAyahs} verses`;
             
-            // Display all verses
+            // Display all verses with both Arabic and translation
             elements.fullSurahContainer.innerHTML = '';
-            surah.ayahs.forEach(ayah => {
+            
+            for (let i = 0; i < arabicSurah.ayahs.length; i++) {
+                const arabicAyah = arabicSurah.ayahs[i];
+                const translationAyah = translationSurah.ayahs[i];
+                
                 const verseElement = document.createElement('div');
                 verseElement.className = 'verse-item';
                 verseElement.innerHTML = `
-                    <div class="ayah-arabic">${ayah.text} <span class="verse-number">${ayah.numberInSurah}</span></div>
-                    <div class="ayah-english">${ayah.numberInSurah}. ${ayah.translation}</div>
+                    <div class="ayah-arabic">${arabicAyah.text} <span class="verse-number">${arabicAyah.numberInSurah}</span></div>
+                    <div class="ayah-translation">${translationAyah.numberInSurah}. ${translationAyah.text}</div>
                 `;
                 elements.fullSurahContainer.appendChild(verseElement);
-            });
+            }
         } catch (error) {
             console.error("Error loading full surah:", error);
             elements.fullSurahContainer.innerHTML = "<p>Error loading surah. Please try again.</p>";
@@ -314,48 +341,66 @@
         elements.singleView.classList.remove('hidden');
     }
     
-    // Fetch specific ayah
+    // Fetch specific ayah with both Arabic and translation
     async function fetchAyah(surahNumber, ayahNumber) {
         try {
-            const response = await fetch(`${API_BASE}/ayah/${surahNumber}:${ayahNumber}/${EDITION}`);
-            if (!response.ok) throw new Error('Network response was not ok');
+            // Fetch Arabic text
+            const arabicResponse = await fetch(`${API_BASE}/ayah/${surahNumber}:${ayahNumber}/${ARABIC_EDITION}`);
+            if (!arabicResponse.ok) throw new Error('Failed to load Arabic text');
             
-            const data = await response.json();
-            const ayah = data.data;
+            // Fetch English translation
+            const translationResponse = await fetch(`${API_BASE}/ayah/${surahNumber}:${ayahNumber}/${TRANSLATION_EDITION}`);
+            if (!translationResponse.ok) throw new Error('Failed to load translation');
+            
+            const arabicData = await arabicResponse.json();
+            const translationData = await translationResponse.json();
+            
+            const arabicAyah = arabicData.data;
+            const translationAyah = translationData.data;
             
             // Store current ayah
-            currentState.ayah = ayah;
+            currentState.ayah = arabicAyah;
             
             displayContent(
-                ayah.text, 
-                `${ayah.surah.englishName} (${ayah.surah.number}:${ayah.numberInSurah})`,
-                ayah.edition.englishName
+                arabicAyah.text,
+                translationAyah.text,
+                `${arabicAyah.surah.englishName} (${arabicAyah.surah.number}:${arabicAyah.numberInSurah})`,
+                translationAyah.edition.englishName
             );
         } catch (error) {
             throw error;
         }
     }
     
-    // Fetch random ayah
+    // Fetch random ayah with both Arabic and translation
     async function loadRandomAyah() {
         setLoading(true);
         elements.fullSurahBtn.disabled = true;
         
         try {
-            const response = await fetch(`${API_BASE}/ayah/random/${EDITION}`);
-            if (!response.ok) throw new Error('Network response was not ok');
+            // Fetch random Arabic ayah
+            const arabicResponse = await fetch(`${API_BASE}/ayah/random/${ARABIC_EDITION}`);
+            if (!arabicResponse.ok) throw new Error('Failed to load Arabic text');
             
-            const data = await response.json();
-            const ayah = data.data;
+            const arabicData = await arabicResponse.json();
+            const arabicAyah = arabicData.data;
             
-            // Store current ayah
-            currentState.ayah = ayah;
-            currentState.surah = ayah.surah;
+            // Fetch corresponding translation
+            const translationResponse = await fetch(`${API_BASE}/ayah/${arabicAyah.surah.number}:${arabicAyah.numberInSurah}/${TRANSLATION_EDITION}`);
+            if (!translationResponse.ok) throw new Error('Failed to load translation');
+            
+            const translationData = await translationResponse.json();
+            const translationAyah = translationData.data;
+            
+            // Store current ayah and surah
+            currentState.ayah = arabicAyah;
+            currentState.surah = arabicAyah.surah;
             
             displayContent(
-                ayah.text, 
-                `${ayah.surah.englishName} (${ayah.surah.number}:${ayah.numberInSurah})`,
-                ayah.edition.englishName
+                arabicAyah.text,
+                translationAyah.text,
+                `${arabicAyah.surah.englishName} (${arabicAyah.surah.number}:${arabicAyah.numberInSurah})`,
+                translationAyah.edition.englishName
             );
             
             // Enable "View Full Surah" button
@@ -369,20 +414,20 @@
     }
     
     // Display content in single verse view
-    function displayContent(arabic, english, reference) {
+    function displayContent(arabic, translation, reference, edition) {
         elements.arabic.textContent = arabic;
-        elements.english.textContent = english;
-        elements.reference.textContent = reference;
+        elements.translation.textContent = translation;
+        elements.reference.textContent = `${reference} - ${edition}`;
         
         // Update share link
-        const shareText = `${arabic}\n${english}\n- ${reference}`;
+        const shareText = `${arabic}\n${translation}\n- ${reference} (${edition})`;
         elements.shareBtn.href = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
     }
     
     // Display error message
     function displayError(message) {
-        elements.arabic.textContent = "Error";
-        elements.english.textContent = message;
+        elements.arabic.textContent = "——";
+        elements.translation.textContent = message;
         elements.reference.textContent = "";
     }
     
@@ -405,4 +450,3 @@
 </script>
 </body>
 </html>
-

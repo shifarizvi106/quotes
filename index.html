@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quran Quotes</title>
@@ -13,14 +9,8 @@
             font-family: 'Georgia', serif;
             background: #f5f0e1;
             color: #4b2e2e;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
             text-align: center;
+            padding: 20px;
             transition: background 0.3s, color 0.3s;
         }
         .card {
@@ -29,6 +19,9 @@
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             max-width: 600px;
+            margin: auto;
+            opacity: 0;
+            transition: opacity 0.5s;
         }
         .ayah-arabic {
             font-size: 1.8rem;
@@ -44,16 +37,18 @@
             color: #7b5e5e;
         }
         .button {
-            margin-top: 10px;
+            margin: 10px 5px;
             padding: 10px 20px;
             background: #7b5e5e;
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
+            transition: transform 0.2s;
         }
         .button:hover {
             background: #5e4545;
+            transform: scale(1.05);
         }
         .dark-mode {
             background: #2b2b2b;
@@ -65,7 +60,7 @@
         .search-container {
             margin-top: 20px;
         }
-        .search-input {
+        .search-input, .search-select {
             padding: 8px;
             margin: 5px;
             border: 1px solid #7b5e5e;
@@ -74,94 +69,132 @@
     </style>
 </head>
 <body>
-    <div class="card">
+    <div class="card" id="card">
         <div class="ayah-arabic" id="ayah-arabic">Loading...</div>
         <div class="ayah-english" id="ayah-english"></div>
         <div class="reference" id="reference"></div>
-        <div class="tafsir" id="tafsir"></div>
 
         <div class="search-container">
-            <input type="number" id="surahInput" class="search-input" placeholder="Surah Number">
+            <input type="text" id="surahSearchInput" class="search-input" placeholder="Search Surah Name..." onkeyup="filterSurah()">
+            <select id="surahSelect" class="search-select"></select>
             <input type="number" id="ayahInput" class="search-input" placeholder="Ayah Number">
-            <button class="button" onclick="searchAyah()">Search</button>
+            <button class="button" onclick="searchAyah()">Search Ayah</button>
+            <button class="button" onclick="showFullSurah()">View Full Surah</button>
         </div>
 
-        <button class="button" onclick="fetchAyah()">Load Another Verse</button>
+        <button class="button" onclick="loadRandomAyah()">Load Another Verse</button>
         <button class="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
-        <button class="button" onclick="shareWhatsApp()">Share on WhatsApp</button>
-        <button class="button" onclick="generateQR()">Generate QR Code</button>
-        <div id="qrcode"></div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
-        async function fetchAyah(surah = null, ayah = null) {
-            try {
-                let url = 'https://api.alquran.cloud/v1/ayah/random/editions/quran-uthmani,en.sahih';
-                if (surah && ayah) {
-                    url = `https://api.alquran.cloud/v1/ayah/${surah}:${ayah}/editions/quran-uthmani,en.sahih`;
-                }
+        const ayahs = [
+            {arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', english: 'In the name of Allah, the Entirely Merciful, the Especially Merciful.', reference: 'Al-Fatihah (1:1)'},
+            {arabic: 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ', english: 'All praise is due to Allah, Lord of the worlds.', reference: 'Al-Fatihah (1:2)'},
+            {arabic: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ', english: 'Allah - there is no deity except Him, the Ever-Living, the Sustainer of existence.', reference: 'Al-Baqarah (2:255)'},
+            {arabic: 'إِنَّ مَعَ الْعُسْرِ يُسْرًا', english: 'Indeed, with hardship [will be] ease.', reference: 'Ash-Sharh (94:6)'},
+            {arabic: 'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ', english: 'Indeed, We have granted you, [O Muhammad], al-Kawthar.', reference: 'Al-Kawthar (108:1)'}
+        ];
 
-                const response = await fetch(url);
-                const data = await response.json();
-                const arabic = data.data[0].text;
-                const english = data.data[1].text;
-                const surahName = data.data[0].surah.englishName;
-                const ayahNumber = data.data[0].numberInSurah;
+        const fullSurahs = {
+            'Al-Fatihah': [
+                'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+                'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
+                'الرَّحْمَٰنِ الرَّحِيمِ',
+                'مَالِكِ يَوْمِ الدِّينِ',
+                'إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ',
+                'اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ',
+                'صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ'
+            ],
+            'Al-Kawthar': [
+                'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ',
+                'فَصَلِّ لِرَبِّكَ وَانْحَرْ',
+                'إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ'
+            ]
+        };
 
-                document.getElementById('ayah-arabic').innerText = arabic;
-                document.getElementById('ayah-english').innerText = english;
-                document.getElementById('reference').innerText = `${surahName} (${ayahNumber})`;
-                document.getElementById('tafsir').innerText = "Tafsir unavailable for now.";
+        const surahList = ["Al-Fatihah", "Al-Baqarah", "Ash-Sharh", "Al-Kawthar"];
 
-                document.getElementById('qrcode').innerHTML = '';
+        function populateSurahDropdown() {
+            const select = document.getElementById('surahSelect');
+            select.innerHTML = '';
+            surahList.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+        }
 
-            } catch (error) {
-                console.error('Failed to fetch ayah:', error);
-                document.getElementById('ayah-arabic').innerText = 'Error fetching verse.';
-                document.getElementById('ayah-english').innerText = '';
-                document.getElementById('reference').innerText = '';
-                document.getElementById('tafsir').innerText = '';
-            }
+        function filterSurah() {
+            const search = document.getElementById('surahSearchInput').value.toLowerCase();
+            const select = document.getElementById('surahSelect');
+            select.innerHTML = '';
+            surahList.filter(name => name.toLowerCase().includes(search)).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+        }
+
+        function loadRandomAyah() {
+            const card = document.getElementById('card');
+            card.style.opacity = 0;
+            const randomIndex = Math.floor(Math.random() * ayahs.length);
+            const ayah = ayahs[randomIndex];
+
+            document.getElementById('ayah-arabic').innerText = ayah.arabic;
+            document.getElementById('ayah-english').innerText = ayah.english;
+            document.getElementById('reference').innerText = ayah.reference;
+
+            card.style.opacity = 1;
         }
 
         function searchAyah() {
-            const surah = document.getElementById('surahInput').value;
-            const ayah = document.getElementById('ayahInput').value;
-            if (surah && ayah) {
-                fetchAyah(surah, ayah);
+            const surah = document.getElementById('surahSelect').value;
+            const ayahInput = document.getElementById('ayahInput').value;
+            const foundAyah = ayahs.find(a => a.reference.includes(surah) && a.reference.includes(`(${ayahInput})`));
+
+            const card = document.getElementById('card');
+            card.style.opacity = 0;
+
+            if(foundAyah) {
+                document.getElementById('ayah-arabic').innerText = foundAyah.arabic;
+                document.getElementById('ayah-english').innerText = foundAyah.english;
+                document.getElementById('reference').innerText = foundAyah.reference;
             } else {
-                alert('Please enter both Surah and Ayah numbers.');
+                document.getElementById('ayah-arabic').innerText = 'Ayah not found in offline data.';
+                document.getElementById('ayah-english').innerText = '';
+                document.getElementById('reference').innerText = '';
             }
+
+            card.style.opacity = 1;
+        }
+
+        function showFullSurah() {
+            const surah = document.getElementById('surahSelect').value;
+            const card = document.getElementById('card');
+            card.style.opacity = 0;
+
+            if(fullSurahs[surah]) {
+                document.getElementById('ayah-arabic').innerHTML = fullSurahs[surah].map(ayah => `<div>${ayah}</div>`).join('');
+                document.getElementById('ayah-english').innerText = '';
+                document.getElementById('reference').innerText = surah;
+            } else {
+                document.getElementById('ayah-arabic').innerText = 'Full Surah not available.';
+                document.getElementById('ayah-english').innerText = '';
+                document.getElementById('reference').innerText = '';
+            }
+
+            card.style.opacity = 1;
         }
 
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
         }
 
-        function shareWhatsApp() {
-            const arabic = document.getElementById('ayah-arabic').innerText;
-            const english = document.getElementById('ayah-english').innerText;
-            const reference = document.getElementById('reference').innerText;
-            const message = `${arabic}\n${english}\n(${reference})`;
-            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
-        }
-
-        function generateQR() {
-            const arabic = document.getElementById('ayah-arabic').innerText;
-            const english = document.getElementById('ayah-english').innerText;
-            const reference = document.getElementById('reference').innerText;
-            const qrText = `${arabic}\n${english}\n(${reference})`;
-            document.getElementById('qrcode').innerHTML = '';
-            new QRCode(document.getElementById('qrcode'), {
-                text: qrText,
-                width: 128,
-                height: 128
-            });
-        }
-
-        fetchAyah();
+        populateSurahDropdown();
+        loadRandomAyah();
     </script>
 </body>
 </html>

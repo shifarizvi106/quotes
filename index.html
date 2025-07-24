@@ -60,7 +60,7 @@
         .search-container {
             margin-top: 20px;
         }
-        .search-input, .search-select {
+        .search-input {
             padding: 8px;
             margin: 5px;
             border: 1px solid #7b5e5e;
@@ -75,14 +75,11 @@
         <div class="reference" id="reference"></div>
 
         <div class="search-container">
-            <input type="text" id="surahSearchInput" class="search-input" placeholder="Search Surah Name..." onkeyup="filterSurah()">
-            <select id="surahSelect" class="search-select"></select>
-            <input type="number" id="ayahInput" class="search-input" placeholder="Ayah Number">
-            <button class="button" onclick="searchAyah()">Search Ayah</button>
-            <button class="button" onclick="showFullSurah()">View Full Surah</button>
+            <input type="text" id="surahSearchInput" class="search-input" placeholder="Enter Surah Name">
+            <button class="button" onclick="searchSurahByName()">View Full Surah</button>
         </div>
 
-        <button class="button" onclick="loadRandomAyah()">Load Another Verse</button>
+        <button class="button" onclick="loadRandomAyah()">Load Random Verse</button>
         <button class="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
     </div>
 
@@ -95,46 +92,50 @@
             {arabic: 'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ', english: 'Indeed, We have granted you, [O Muhammad], al-Kawthar.', reference: 'Al-Kawthar (108:1)'}
         ];
 
-        const fullSurahs = {
-            'Al-Fatihah': [
-                'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-                'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
-                'الرَّحْمَٰنِ الرَّحِيمِ',
-                'مَالِكِ يَوْمِ الدِّينِ',
-                'إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ',
-                'اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ',
-                'صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ'
-            ],
-            'Al-Kawthar': [
-                'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ',
-                'فَصَلِّ لِرَبِّكَ وَانْحَرْ',
-                'إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ'
-            ]
-        };
+        async function searchSurahByName() {
+            const surahName = document.getElementById('surahSearchInput').value.toLowerCase();
+            if (!surahName) return alert("Please enter a Surah name.");
 
-        const surahList = ["Al-Fatihah", "Al-Baqarah", "Ash-Sharh", "Al-Kawthar"];
+            try {
+                const res = await fetch('https://api.quran.com/v4/chapters');
+                const data = await res.json();
+                const chapter = data.data.find(ch => ch.name_simple.toLowerCase() === surahName);
 
-        function populateSurahDropdown() {
-            const select = document.getElementById('surahSelect');
-            select.innerHTML = '';
-            surahList.forEach(name => {
-                const option = document.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                select.appendChild(option);
-            });
-        }
+                if (!chapter) {
+                    alert("Surah not found.");
+                    return;
+                }
 
-        function filterSurah() {
-            const search = document.getElementById('surahSearchInput').value.toLowerCase();
-            const select = document.getElementById('surahSelect');
-            select.innerHTML = '';
-            surahList.filter(name => name.toLowerCase().includes(search)).forEach(name => {
-                const option = document.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                select.appendChild(option);
-            });
+                const chapterNumber = chapter.id;
+                const arabicRes = await fetch(`https://api.quran.com/v4/quran/verses/uthmani?chapter_number=${chapterNumber}`);
+                const arabicData = await arabicRes.json();
+                const translationRes = await fetch(`https://api.quran.com/v4/quran/translations/131?chapter_number=${chapterNumber}`);
+                const translationData = await translationRes.json();
+
+                const verses = arabicData.data.verses;
+                const translations = translationData.data.translations;
+
+                let arabicHTML = '';
+                let englishHTML = '';
+
+                verses.forEach((v, idx) => {
+                    arabicHTML += `<div>${v.text}</div>`;
+                    englishHTML += `<div>${translations[idx]?.text || ''}</div>`;
+                });
+
+                const card = document.getElementById('card');
+                card.style.opacity = 0;
+
+                document.getElementById('ayah-arabic').innerHTML = arabicHTML;
+                document.getElementById('ayah-english').innerHTML = englishHTML;
+                document.getElementById('reference').innerText = `${chapter.name_simple} (Surah ${chapterNumber})`;
+
+                card.style.opacity = 1;
+
+            } catch (err) {
+                alert("Error fetching Surah. Please try again.");
+                console.error(err);
+            }
         }
 
         function loadRandomAyah() {
@@ -150,50 +151,10 @@
             card.style.opacity = 1;
         }
 
-        function searchAyah() {
-            const surah = document.getElementById('surahSelect').value;
-            const ayahInput = document.getElementById('ayahInput').value;
-            const foundAyah = ayahs.find(a => a.reference.includes(surah) && a.reference.includes(`(${ayahInput})`));
-
-            const card = document.getElementById('card');
-            card.style.opacity = 0;
-
-            if(foundAyah) {
-                document.getElementById('ayah-arabic').innerText = foundAyah.arabic;
-                document.getElementById('ayah-english').innerText = foundAyah.english;
-                document.getElementById('reference').innerText = foundAyah.reference;
-            } else {
-                document.getElementById('ayah-arabic').innerText = 'Ayah not found in offline data.';
-                document.getElementById('ayah-english').innerText = '';
-                document.getElementById('reference').innerText = '';
-            }
-
-            card.style.opacity = 1;
-        }
-
-        function showFullSurah() {
-            const surah = document.getElementById('surahSelect').value;
-            const card = document.getElementById('card');
-            card.style.opacity = 0;
-
-            if(fullSurahs[surah]) {
-                document.getElementById('ayah-arabic').innerHTML = fullSurahs[surah].map(ayah => `<div>${ayah}</div>`).join('');
-                document.getElementById('ayah-english').innerText = '';
-                document.getElementById('reference').innerText = surah;
-            } else {
-                document.getElementById('ayah-arabic').innerText = 'Full Surah not available.';
-                document.getElementById('ayah-english').innerText = '';
-                document.getElementById('reference').innerText = '';
-            }
-
-            card.style.opacity = 1;
-        }
-
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
         }
 
-        populateSurahDropdown();
         loadRandomAyah();
     </script>
 </body>

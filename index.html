@@ -25,8 +25,6 @@
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             max-width: 600px;
-            opacity: 0;
-            transition: opacity 0.5s;
         }
         .ayah-arabic {
             font-size: 1.8rem;
@@ -41,11 +39,6 @@
             font-size: 1rem;
             color: #7b5e5e;
         }
-        .tafsir {
-            font-size: 0.9rem;
-            color: #5e4545;
-            margin-top: 10px;
-        }
         .button {
             margin-top: 10px;
             padding: 10px 20px;
@@ -54,11 +47,9 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: transform 0.2s;
         }
         .button:hover {
             background: #5e4545;
-            transform: scale(1.05);
         }
         .dark-mode {
             background: #2b2b2b;
@@ -70,7 +61,7 @@
         .search-container {
             margin-top: 20px;
         }
-        .search-input, .search-select {
+        .search-input {
             padding: 8px;
             margin: 5px;
             border: 1px solid #7b5e5e;
@@ -79,14 +70,14 @@
     </style>
 </head>
 <body>
-    <div class="card" id="card">
+    <div class="card">
         <div class="ayah-arabic" id="ayah-arabic">Loading...</div>
         <div class="ayah-english" id="ayah-english"></div>
         <div class="reference" id="reference"></div>
-        <div class="tafsir" id="tafsir">Tafsir by Sistani: Coming Soon</div>
+        <div class="tafsir" id="tafsir"></div>
 
         <div class="search-container">
-            <select id="surahSelect" class="search-select"></select>
+            <input type="number" id="surahInput" class="search-input" placeholder="Surah Number">
             <input type="number" id="ayahInput" class="search-input" placeholder="Ayah Number">
             <button class="button" onclick="searchAyah()">Search</button>
         </div>
@@ -100,21 +91,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
-        const surahList = [
-            "Al-Fatihah", "Al-Baqarah", "Aal-E-Imran", "An-Nisa", "Al-Maidah", "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus", "Hud", "Yusuf", "Ar-Ra'd", "Ibrahim", "Al-Hijr", "An-Nahl", "Al-Isra", "Al-Kahf", "Maryam", "Ta-Ha", "Al-Anbiya", "Al-Hajj", "Al-Muminun", "An-Nur", "Al-Furqan", "Ash-Shu'ara", "An-Naml", "Al-Qasas", "Al-Ankabut", "Ar-Rum", "Luqman", "As-Sajda", "Al-Ahzab", "Saba", "Fatir", "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar", "Ghafir", "Fussilat", "Ash-Shura", "Az-Zukhruf", "Ad-Dukhan", "Al-Jathiya", "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf", "Adh-Dhariyat", "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman", "Al-Waqia", "Al-Hadid", "Al-Mujadila", "Al-Hashr", "Al-Mumtahina", "As-Saff", "Al-Jumu'a", "Al-Munafiqun", "At-Taghabun", "At-Talaq", "At-Tahrim", "Al-Mulk", "Al-Qalam", "Al-Haqqa", "Al-Ma'arij", "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddaththir", "Al-Qiyama", "Al-Insan", "Al-Mursalat", "An-Naba", "An-Nazi'at", "Abasa", "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Inshiqaq", "Al-Burooj", "At-Tariq", "Al-Ala", "Al-Ghashiya", "Al-Fajr", "Al-Balad", "Ash-Shams", "Al-Lail", "Ad-Duha", "Ash-Sharh", "At-Tin", "Al-Alaq", "Al-Qadr", "Al-Bayyina", "Az-Zalzalah", "Al-Adiyat", "Al-Qaria", "At-Takathur", "Al-Asr", "Al-Humazah", "Al-Fil", "Quraish", "Al-Ma'un", "Al-Kawthar", "Al-Kafirun", "An-Nasr", "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas"
-        ];
-
-        surahList.forEach((name, index) => {
-            const option = document.createElement('option');
-            option.value = index + 1;
-            option.textContent = name;
-            document.getElementById('surahSelect').appendChild(option);
-        });
-
         async function fetchAyah(surah = null, ayah = null) {
-            const card = document.getElementById('card');
-            card.style.opacity = 0;
-
             try {
                 let url = 'https://api.alquran.cloud/v1/ayah/random/editions/quran-uthmani,en.sahih';
                 if (surah && ayah) {
@@ -131,22 +108,26 @@
                 document.getElementById('ayah-arabic').innerText = arabic;
                 document.getElementById('ayah-english').innerText = english;
                 document.getElementById('reference').innerText = `${surahName} (${ayahNumber})`;
+                document.getElementById('tafsir').innerText = "Tafsir unavailable for now.";
 
                 document.getElementById('qrcode').innerHTML = '';
-                card.style.opacity = 1;
 
             } catch (error) {
                 console.error('Failed to fetch ayah:', error);
+                document.getElementById('ayah-arabic').innerText = 'Error fetching verse.';
+                document.getElementById('ayah-english').innerText = '';
+                document.getElementById('reference').innerText = '';
+                document.getElementById('tafsir').innerText = '';
             }
         }
 
         function searchAyah() {
-            const surah = document.getElementById('surahSelect').value;
+            const surah = document.getElementById('surahInput').value;
             const ayah = document.getElementById('ayahInput').value;
             if (surah && ayah) {
                 fetchAyah(surah, ayah);
             } else {
-                alert('Please select a Surah and enter Ayah number.');
+                alert('Please enter both Surah and Ayah numbers.');
             }
         }
 
@@ -155,17 +136,19 @@
         }
 
         function shareWhatsApp() {
+            const arabic = document.getElementById('ayah-arabic').innerText;
+            const english = document.getElementById('ayah-english').innerText;
             const reference = document.getElementById('reference').innerText;
-            const link = window.location.href;
-            const message = `Check out this verse: ${reference} - ${link}`;
+            const message = `${arabic}\n${english}\n(${reference})`;
             const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
         }
 
         function generateQR() {
+            const arabic = document.getElementById('ayah-arabic').innerText;
+            const english = document.getElementById('ayah-english').innerText;
             const reference = document.getElementById('reference').innerText;
-            const link = window.location.href;
-            const qrText = `${reference} - ${link}`;
+            const qrText = `${arabic}\n${english}\n(${reference})`;
             document.getElementById('qrcode').innerHTML = '';
             new QRCode(document.getElementById('qrcode'), {
                 text: qrText,
@@ -178,3 +161,4 @@
     </script>
 </body>
 </html>
+

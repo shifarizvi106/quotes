@@ -68,7 +68,7 @@
         <div class="ayah-english" id="ayah-english"></div>
         <div class="reference" id="reference"></div>
         
-        <input type="text" id="surah-input" class="search-box" placeholder="Enter Surah number (1-114)">
+        <input type="text" id="surah-input" class="search-box" placeholder="Enter Surah name">
         <button class="button" onclick="fetchSurah()">Get Surah</button>
         <button class="button" onclick="loadRandomAyah()">Random Verse</button>
         <button class="button" onclick="toggleDarkMode()">Dark Mode</button>
@@ -76,88 +76,58 @@
     </div>
 
 <script>
-    // Simplified data storage
-    const quranData = {
-        ayahs: [
-            {
-                arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', 
-                english: 'In the name of Allah, the Entirely Merciful, the Especially Merciful.', 
-                reference: 'Al-Fatihah 1:1'
-            },
-            {
-                arabic: 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ', 
-                english: 'All praise is due to Allah, Lord of the worlds.', 
-                reference: 'Al-Fatihah 1:2'
-            },
-            {
-                arabic: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ', 
-                english: 'Allah - there is no deity except Him, the Ever-Living, the Sustainer of existence.', 
-                reference: 'Al-Baqarah 2:255'
-            }
-        ],
-        surahs: [
-            { number: 1, name: "Al-Fatihah", ayahs: 7 },
-            { number: 2, name: "Al-Baqarah", ayahs: 286 },
-            { number: 112, name: "Al-Ikhlas", ayahs: 4 }
-        ]
-    };
+    const CORS_PROXY = "https://corsproxy.io/?";
+    const API_URL_RANDOM = "https://api.alquran.cloud/v1/ayah/random";
+    const API_URL_SURAH = "https://api.alquran.cloud/v1/surah/";
 
-    // Main display function
+    async function loadRandomAyah() {
+        try {
+            const response = await fetch(CORS_PROXY + API_URL_RANDOM);
+            const data = await response.json();
+            const ayah = data.data;
+
+            displayContent(ayah.text, ayah.edition.name, `${ayah.surah.englishName} (${ayah.surah.number}:${ayah.numberInSurah})`);
+        } catch (err) {
+            alert("Failed to fetch verse. Try again later.");
+        }
+    }
+
+    async function fetchSurah() {
+        const surahName = document.getElementById('surah-input').value.trim();
+        if (!surahName) {
+            alert("Please enter a Surah name.");
+            return;
+        }
+
+        try {
+            const response = await fetch(CORS_PROXY + API_URL_SURAH);
+            const data = await response.json();
+            const surah = data.data.find(s => s.englishName.toLowerCase() === surahName.toLowerCase());
+
+            if (surah) {
+                displayContent(`Surah ${surah.englishName}`, `Total Verses: ${surah.numberOfAyahs}`, `Surah ${surah.englishName} (${surah.number})`);
+            } else {
+                alert("Surah not found. Try again.");
+            }
+        } catch (err) {
+            alert("Failed to fetch Surah. Try again later.");
+        }
+    }
+
     function displayContent(arabic, english, reference) {
         document.getElementById('ayah-arabic').textContent = arabic;
         document.getElementById('ayah-english').textContent = english;
         document.getElementById('reference').textContent = reference;
-        
-        // Update share link
+
         const shareText = `${arabic}\n${english}\n- ${reference}`;
-        document.getElementById('share-btn').href = 
-            `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+        document.getElementById('share-btn').href = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
     }
 
-    // Fetch surah from API (simplified mock)
-    function fetchSurah() {
-        const surahNum = parseInt(document.getElementById('surah-input').value);
-        if (surahNum < 1 || surahNum > 114) {
-            alert("Please enter a surah number between 1-114");
-            return;
-        }
-        
-        // In a real app, you would fetch from an API here
-        const surah = quranData.surahs.find(s => s.number === surahNum);
-        if (surah) {
-            displayContent(
-                `Surah ${surah.name} (${surah.number})`, 
-                `This surah has ${surah.ayahs} verses`, 
-                `Surah ${surah.name}`
-            );
-        } else {
-            alert("Surah data not available in this demo");
-        }
-    }
-
-    // Random verse loader
-    function loadRandomAyah() {
-        const randomAyah = quranData.ayahs[
-            Math.floor(Math.random() * quranData.ayahs.length)
-        ];
-        displayContent(
-            randomAyah.arabic, 
-            randomAyah.english, 
-            randomAyah.reference
-        );
-    }
-
-    // Dark mode toggle
     function toggleDarkMode() {
         document.body.classList.toggle('dark-mode');
     }
 
-    // Initialize with first verse
-    displayContent(
-        quranData.ayahs[0].arabic,
-        quranData.ayahs[0].english,
-        quranData.ayahs[0].reference
-    );
+    loadRandomAyah();
 </script>
 </body>
 </html>

@@ -81,10 +81,28 @@
 
         <button class="button" onclick="loadRandomAyah()">Load Random Verse</button>
         <button class="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
-        <button class="button" onclick="shareOnWhatsApp()">Share on WhatsApp</button>
+        <a id="whatsapp-share" class="button" href="#" target="_blank">Share on WhatsApp</a>
     </div>
 
     <script>
+        const surahs = {
+            "ikhlas": {
+                arabic: "قُلْ هُوَ اللَّهُ أَحَدٌ اللَّهُ الصَّمَدُ لَمْ يَلِدْ وَلَمْ يُولَدْ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ",
+                english: "Say, He is Allah, [Who is] One. Allah, the Eternal Refuge. He neither begets nor is born, Nor is there to Him any equivalent.",
+                reference: "Surah Al-Ikhlas"
+            },
+            "kawthar": {
+                arabic: "إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ فَصَلِّ لِرَبِّكَ وَانْحَرْ إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ",
+                english: "Indeed, We have granted you, [O Muhammad], al-Kawthar. So pray to your Lord and sacrifice [to Him alone]. Indeed, your enemy is the one cut off.",
+                reference: "Surah Al-Kawthar"
+            },
+            "nas": {
+                arabic: "قُلْ أَعُوذُ بِرَبِّ النَّاسِ مَلِكِ النَّاسِ إِلَٰهِ النَّاسِ مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ مِنَ الْجِنَّةِ وَالنَّاسِ",
+                english: "Say, I seek refuge in the Lord of mankind, The Sovereign of mankind, The God of mankind, From the evil of the retreating whisperer, Who whispers [evil] into the breasts of mankind, From among the jinn and mankind.",
+                reference: "Surah An-Nas"
+            }
+        };
+
         const ayahs = [
             {arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', english: 'In the name of Allah, the Entirely Merciful, the Especially Merciful.', reference: 'Al-Fatihah (1:1)'},
             {arabic: 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ', english: 'All praise is due to Allah, Lord of the worlds.', reference: 'Al-Fatihah (1:2)'},
@@ -93,79 +111,37 @@
             {arabic: 'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ', english: 'Indeed, We have granted you, [O Muhammad], al-Kawthar.', reference: 'Al-Kawthar (108:1)'}
         ];
 
-        async function searchSurahByName() {
-            const surahName = document.getElementById('surahSearchInput').value.toLowerCase();
-            if (!surahName) return alert("Please enter a Surah name.");
-
-            try {
-                const card = document.getElementById('card');
-                card.style.opacity = 0;
-                document.getElementById('ayah-arabic').innerText = "Loading Surah...";
-                document.getElementById('ayah-english').innerText = "";
-                document.getElementById('reference').innerText = "";
-
-                const res = await fetch('https://api.quran.com/v4/chapters');
-                const data = await res.json();
-                const chapter = data.data.find(ch => ch.name_simple.toLowerCase() === surahName);
-
-                if (!chapter) {
-                    alert("Surah not found.");
-                    return;
-                }
-
-                const chapterNumber = chapter.id;
-                const arabicRes = await fetch(`https://api.quran.com/v4/quran/verses/uthmani?chapter_number=${chapterNumber}`);
-                const arabicData = await arabicRes.json();
-                const translationRes = await fetch(`https://api.quran.com/v4/quran/translations/131?chapter_number=${chapterNumber}`);
-                const translationData = await translationRes.json();
-
-                const verses = arabicData.data.verses;
-                const translations = translationData.data.translations;
-
-                let arabicHTML = '';
-                let englishHTML = '';
-
-                verses.forEach((v, idx) => {
-                    arabicHTML += `<div>${v.text}</div>`;
-                    englishHTML += `<div>${translations[idx]?.text || ''}</div>`;
-                });
-
-                document.getElementById('ayah-arabic').innerHTML = arabicHTML;
-                document.getElementById('ayah-english').innerHTML = englishHTML;
-                document.getElementById('reference').innerText = `${chapter.name_simple} (Surah ${chapterNumber})`;
-
-                card.style.opacity = 1;
-
-            } catch (err) {
-                alert("Error fetching Surah. Check your connection and try again.");
-                console.error(err);
+        function searchSurahByName() {
+            const input = document.getElementById('surahSearchInput').value.toLowerCase().trim();
+            if (surahs[input]) {
+                const surah = surahs[input];
+                displayAyah(surah.arabic, surah.english, surah.reference);
+            } else {
+                alert("Surah not found. Try 'Ikhlas', 'Kawthar', or 'Nas'.");
             }
         }
 
         function loadRandomAyah() {
-            const card = document.getElementById('card');
-            card.style.opacity = 0;
             const randomIndex = Math.floor(Math.random() * ayahs.length);
             const ayah = ayahs[randomIndex];
+            displayAyah(ayah.arabic, ayah.english, ayah.reference);
+        }
 
-            document.getElementById('ayah-arabic').innerText = ayah.arabic;
-            document.getElementById('ayah-english').innerText = ayah.english;
-            document.getElementById('reference').innerText = ayah.reference;
+        function displayAyah(arabic, english, reference) {
+            const card = document.getElementById('card');
+            card.style.opacity = 0;
+            document.getElementById('ayah-arabic').innerText = arabic;
+            document.getElementById('ayah-english').innerText = english;
+            document.getElementById('reference').innerText = reference;
 
-            card.style.opacity = 1;
+            const whatsappLink = `https://wa.me/?text=${encodeURIComponent(`${arabic}\n${english}\n- ${reference}`)}`;
+            document.getElementById('whatsapp-share').href = whatsappLink;
+
+            setTimeout(() => { card.style.opacity = 1; }, 200);
         }
 
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
-        }
-
-        function shareOnWhatsApp() {
-            const arabic = document.getElementById('ayah-arabic').innerText;
-            const english = document.getElementById('ayah-english').innerText;
-            const reference = document.getElementById('reference').innerText;
-            const message = `${arabic}\n${english}\n- ${reference}`;
-            const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-            window.open(url, '_blank');
         }
 
         loadRandomAyah();

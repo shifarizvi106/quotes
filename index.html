@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quran Quotes</title>
+    <title>Quran Explorer</title>
     <style>
         body {
             font-family: 'Georgia', serif;
@@ -15,27 +15,29 @@
         }
         .card {
             background: #fffaf0;
-            padding: 20px;
+            padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            max-width: 600px;
+            max-width: 650px;
             margin: 20px auto;
-            opacity: 1;
             transition: all 0.3s;
         }
         .ayah-arabic {
             font-size: 1.8rem;
-            margin: 15px 0;
+            margin: 20px 0;
             direction: rtl;
+            line-height: 1.8;
         }
         .ayah-english {
             font-size: 1.2rem;
-            margin: 15px 0;
+            margin: 20px 0;
+            line-height: 1.6;
         }
         .reference {
             font-size: 1rem;
             color: #7b5e5e;
-            margin: 15px 0;
+            margin: 20px 0;
+            font-style: italic;
         }
         .button {
             margin: 10px 5px;
@@ -46,88 +48,361 @@
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
+            font-size: 0.9rem;
         }
         .button:hover {
             background: #5e4545;
             transform: scale(1.05);
         }
+        .button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
         .dark-mode { background: #2b2b2b; color: #f5f5f5; }
         .dark-mode .card { background: #3c3c3c; }
+        .dark-mode .reference { color: #aaaaaa; }
+        .search-container {
+            margin: 20px 0;
+        }
         .search-box {
-            padding: 8px;
-            margin: 5px;
+            padding: 12px;
+            margin: 10px 5px;
             border: 1px solid #7b5e5e;
             border-radius: 6px;
-            width: 200px;
+            width: 250px;
+            font-size: 1rem;
+        }
+        .suggestions {
+            max-width: 300px;
+            margin: 10px auto;
+            text-align: left;
+            font-size: 0.8rem;
+            color: #7b5e5e;
+        }
+        .full-surah-container {
+            max-height: 500px;
+            overflow-y: auto;
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e0d6c2;
+            border-radius: 8px;
+            background: #f9f5e9;
+            text-align: right;
+        }
+        .dark-mode .full-surah-container {
+            background: #333333;
+            border-color: #444;
+        }
+        .verse-item {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #e0d6c2;
+        }
+        .dark-mode .verse-item {
+            border-bottom-color: #444;
+        }
+        .verse-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: #7b5e5e;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-left: 10px;
+            font-size: 0.8rem;
+        }
+        .loading {
+            position: relative;
+            min-height: 100px;
+        }
+        .loading:after {
+            content: "Loading...";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #7b5e5e;
+        }
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="card">
-        <div class="ayah-arabic" id="ayah-arabic">Loading...</div>
-        <div class="ayah-english" id="ayah-english"></div>
-        <div class="reference" id="reference"></div>
-        
-        <input type="text" id="surah-input" class="search-box" placeholder="Enter Surah name">
-        <button class="button" onclick="fetchSurah()">Get Surah</button>
-        <button class="button" onclick="loadRandomAyah()">Random Verse</button>
-        <button class="button" onclick="toggleDarkMode()">Dark Mode</button>
-        <a id="share-btn" class="button" href="#" target="_blank">Share</a>
+        <div id="single-verse-view">
+            <div class="ayah-arabic" id="ayah-arabic">Loading verse...</div>
+            <div class="ayah-english" id="ayah-english"></div>
+            <div class="reference" id="reference"></div>
+        </div>
+
+        <div id="full-surah-view" class="hidden">
+            <h2 id="surah-title"></h2>
+            <div class="full-surah-container" id="full-surah-container"></div>
+            <button class="button" onclick="backToSingleVerse()">Back to Single Verse</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="surah-input" class="search-box" placeholder="Search Surah by name" list="surah-suggestions">
+            <datalist id="surah-suggestions"></datalist>
+            <button class="button" id="search-btn" onclick="searchSurah()">Search Surah</button>
+            <button class="button" id="full-surah-btn" onclick="viewFullSurah()" disabled>View Full Surah</button>
+        </div>
+
+        <div>
+            <button class="button" id="random-btn" onclick="loadRandomAyah()">Random Verse</button>
+            <button class="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+            <a id="share-btn" class="button" href="#" target="_blank">Share</a>
+        </div>
+
+        <div class="suggestions">
+            Try: Al-Fatihah, Yasin, Ar-Rahman, Al-Mulk, Al-Ikhlas
+        </div>
     </div>
 
 <script>
-    const CORS_PROXY = "https://corsproxy.io/?";
-    const API_URL_RANDOM = "https://api.alquran.cloud/v1/ayah/random";
-    const API_URL_SURAH = "https://api.alquran.cloud/v1/surah/";
-
-    async function loadRandomAyah() {
+    // API Configuration
+    const API_BASE = "https://api.alquran.cloud/v1";
+    const EDITION = "en.asad"; // English translation by Muhammad Asad
+    
+    // Current app state
+    let currentState = {
+        surah: null,
+        ayah: null,
+        allSurahs: []
+    };
+    
+    // Cache DOM elements
+    const elements = {
+        arabic: document.getElementById('ayah-arabic'),
+        english: document.getElementById('ayah-english'),
+        reference: document.getElementById('reference'),
+        surahInput: document.getElementById('surah-input'),
+        searchBtn: document.getElementById('search-btn'),
+        randomBtn: document.getElementById('random-btn'),
+        fullSurahBtn: document.getElementById('full-surah-btn'),
+        shareBtn: document.getElementById('share-btn'),
+        suggestions: document.getElementById('surah-suggestions'),
+        singleView: document.getElementById('single-verse-view'),
+        fullView: document.getElementById('full-surah-view'),
+        surahTitle: document.getElementById('surah-title'),
+        fullSurahContainer: document.getElementById('full-surah-container')
+    };
+    
+    // Initialize the app
+    async function init() {
+        // Load dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+        
+        // Load all surah names for autocomplete
+        await loadAllSurahs();
+        
+        // Load initial random ayah
+        loadRandomAyah();
+        
+        // Add keyboard support
+        elements.surahInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchSurah();
+        });
+    }
+    
+    // Load all surah names for autocomplete
+    async function loadAllSurahs() {
         try {
-            const response = await fetch(CORS_PROXY + API_URL_RANDOM);
+            const response = await fetch(`${API_BASE}/surah`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            
             const data = await response.json();
-            const ayah = data.data;
-
-            displayContent(ayah.text, ayah.edition.name, `${ayah.surah.englishName} (${ayah.surah.number}:${ayah.numberInSurah})`);
-        } catch (err) {
-            alert("Failed to fetch verse. Try again later.");
+            currentState.allSurahs = data.data;
+            
+            // Populate suggestions
+            currentState.allSurahs.forEach(surah => {
+                const option = document.createElement('option');
+                option.value = surah.englishName;
+                option.textContent = `${surah.englishName} (${surah.number})`;
+                elements.suggestions.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Error loading surah list:", error);
         }
     }
-
-    async function fetchSurah() {
-        const surahName = document.getElementById('surah-input').value.trim();
-        if (!surahName) {
-            alert("Please enter a Surah name.");
+    
+    // Search surah by name
+    async function searchSurah() {
+        const input = elements.surahInput.value.trim();
+        if (!input) {
+            alert("Please enter a Surah name");
             return;
         }
-
+        
+        setLoading(true);
+        
         try {
-            const response = await fetch(CORS_PROXY + API_URL_SURAH);
-            const data = await response.json();
-            const surah = data.data.find(s => s.englishName.toLowerCase() === surahName.toLowerCase());
-
-            if (surah) {
-                displayContent(`Surah ${surah.englishName}`, `Total Verses: ${surah.numberOfAyahs}`, `Surah ${surah.englishName} (${surah.number})`);
-            } else {
-                alert("Surah not found. Try again.");
+            // Find matching surah (case insensitive partial match)
+            const surah = currentState.allSurahs.find(s => 
+                s.englishName.toLowerCase().includes(input.toLowerCase()) ||
+                s.name.toLowerCase().includes(input.toLowerCase())
+            );
+            
+            if (!surah) {
+                alert("Surah not found. Try with English name");
+                return;
             }
-        } catch (err) {
-            alert("Failed to fetch Surah. Try again later.");
+            
+            // Store current surah
+            currentState.surah = surah;
+            
+            // Fetch first ayah of the surah
+            await fetchAyah(surah.number, 1);
+            
+            // Enable "View Full Surah" button
+            elements.fullSurahBtn.disabled = false;
+        } catch (error) {
+            console.error("Error searching surah:", error);
+            displayError("Failed to load surah. Please try again.");
+        } finally {
+            setLoading(false);
         }
     }
-
-    function displayContent(arabic, english, reference) {
-        document.getElementById('ayah-arabic').textContent = arabic;
-        document.getElementById('ayah-english').textContent = english;
-        document.getElementById('reference').textContent = reference;
-
-        const shareText = `${arabic}\n${english}\n- ${reference}`;
-        document.getElementById('share-btn').href = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+    
+    // View full surah
+    async function viewFullSurah() {
+        if (!currentState.surah) return;
+        
+        setLoading(true);
+        elements.singleView.classList.add('hidden');
+        elements.fullView.classList.remove('hidden');
+        
+        try {
+            // Fetch the complete surah
+            const response = await fetch(`${API_BASE}/surah/${currentState.surah.number}/${EDITION}`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            const data = await response.json();
+            const surah = data.data;
+            
+            // Display surah title
+            elements.surahTitle.textContent = `${surah.englishName} (${surah.name}) - ${surah.numberOfAyahs} verses`;
+            
+            // Display all verses
+            elements.fullSurahContainer.innerHTML = '';
+            surah.ayahs.forEach(ayah => {
+                const verseElement = document.createElement('div');
+                verseElement.className = 'verse-item';
+                verseElement.innerHTML = `
+                    <div class="ayah-arabic">${ayah.text} <span class="verse-number">${ayah.numberInSurah}</span></div>
+                    <div class="ayah-english">${ayah.numberInSurah}. ${ayah.translation}</div>
+                `;
+                elements.fullSurahContainer.appendChild(verseElement);
+            });
+        } catch (error) {
+            console.error("Error loading full surah:", error);
+            elements.fullSurahContainer.innerHTML = "<p>Error loading surah. Please try again.</p>";
+        } finally {
+            setLoading(false);
+        }
     }
-
+    
+    // Back to single verse view
+    function backToSingleVerse() {
+        elements.fullView.classList.add('hidden');
+        elements.singleView.classList.remove('hidden');
+    }
+    
+    // Fetch specific ayah
+    async function fetchAyah(surahNumber, ayahNumber) {
+        try {
+            const response = await fetch(`${API_BASE}/ayah/${surahNumber}:${ayahNumber}/${EDITION}`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            const data = await response.json();
+            const ayah = data.data;
+            
+            // Store current ayah
+            currentState.ayah = ayah;
+            
+            displayContent(
+                ayah.text, 
+                `${ayah.surah.englishName} (${ayah.surah.number}:${ayah.numberInSurah})`,
+                ayah.edition.englishName
+            );
+        } catch (error) {
+            throw error;
+        }
+    }
+    
+    // Fetch random ayah
+    async function loadRandomAyah() {
+        setLoading(true);
+        elements.fullSurahBtn.disabled = true;
+        
+        try {
+            const response = await fetch(`${API_BASE}/ayah/random/${EDITION}`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            const data = await response.json();
+            const ayah = data.data;
+            
+            // Store current ayah
+            currentState.ayah = ayah;
+            currentState.surah = ayah.surah;
+            
+            displayContent(
+                ayah.text, 
+                `${ayah.surah.englishName} (${ayah.surah.number}:${ayah.numberInSurah})`,
+                ayah.edition.englishName
+            );
+            
+            // Enable "View Full Surah" button
+            elements.fullSurahBtn.disabled = false;
+        } catch (error) {
+            console.error("Error fetching random ayah:", error);
+            displayError("Failed to load verse. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    }
+    
+    // Display content in single verse view
+    function displayContent(arabic, english, reference) {
+        elements.arabic.textContent = arabic;
+        elements.english.textContent = english;
+        elements.reference.textContent = reference;
+        
+        // Update share link
+        const shareText = `${arabic}\n${english}\n- ${reference}`;
+        elements.shareBtn.href = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+    }
+    
+    // Display error message
+    function displayError(message) {
+        elements.arabic.textContent = "Error";
+        elements.english.textContent = message;
+        elements.reference.textContent = "";
+    }
+    
+    // Toggle loading state
+    function setLoading(state) {
+        document.querySelector('.card').classList.toggle('loading', state);
+        elements.searchBtn.disabled = state;
+        elements.randomBtn.disabled = state;
+        elements.fullSurahBtn.disabled = state || !currentState.surah;
+    }
+    
+    // Toggle dark mode
     function toggleDarkMode() {
         document.body.classList.toggle('dark-mode');
+        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
     }
-
-    loadRandomAyah();
+    
+    // Start the app
+    init();
 </script>
 </body>
 </html>
+

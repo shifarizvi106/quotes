@@ -33,6 +33,21 @@
             margin-bottom: 15px;
             font-weight: bold;
         }
+        .typewriter {
+            display: inline-block;
+            overflow: hidden;
+            white-space: nowrap;
+            border-right: 3px solid #7b5e5e;
+            animation: typing 1.5s steps(40, end), blink-caret 0.75s step-end infinite;
+        }
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        @keyframes blink-caret {
+            from, to { border-color: transparent; }
+            50% { border-color: #7b5e5e; }
+        }
         .ayah-translation {
             font-size: 1.2rem;
             line-height: 1.8;
@@ -179,19 +194,12 @@
     </div>
 
 <script>
-    // API Configuration
     const API_BASE = "https://api.alquran.cloud/v1";
-    const ARABIC_EDITION = "ar.alafasy"; // Arabic text edition
-    const TRANSLATION_EDITION = "en.asad"; // English translation by Muhammad Asad
-    
-    // Current app state
-    let currentState = {
-        surah: null,
-        ayah: null,
-        allSurahs: []
-    };
-    
-    // Cache DOM elements
+    const ARABIC_EDITION = "ar.alafasy";
+    const TRANSLATION_EDITION = "en.asad";
+
+    let currentState = { surah: null, ayah: null, allSurahs: [] };
+
     const elements = {
         arabic: document.getElementById('ayah-arabic'),
         translation: document.getElementById('ayah-translation'),
@@ -207,118 +215,61 @@
         surahTitle: document.getElementById('surah-title'),
         fullSurahContainer: document.getElementById('full-surah-container')
     };
-    
-    // Initialize the app
+
     async function init() {
-        // Load dark mode preference
-        if (localStorage.getItem('darkMode') === 'true') {
-            document.body.classList.add('dark-mode');
-        }
-        
-        // Load all surah names for autocomplete
+        if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark-mode');
         await loadAllSurahs();
-        
-        // Load initial random ayah
         loadRandomAyah();
-        
-        // Add keyboard support
-        elements.surahInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') searchSurah();
-        });
+        elements.surahInput.addEventListener('keypress', (e) => { if(e.key==='Enter') searchSurah(); });
+
+        // Auto-refresh random ayah every 30s
+        setInterval(loadRandomAyah, 30000);
     }
-    
-    // Load all surah names for autocomplete
+
     async function loadAllSurahs() {
         try {
-            const response = await fetch(`${API_BASE}/surah`);
-            if (!response.ok) throw new Error('Network response was not ok');
-            
-            const data = await response.json();
+            const res = await fetch(`${API_BASE}/surah`);
+            const data = await res.json();
             currentState.allSurahs = data.data;
-            
-            // Populate suggestions
             currentState.allSurahs.forEach(surah => {
                 const option = document.createElement('option');
                 option.value = surah.englishName;
                 option.textContent = `${surah.englishName} (${surah.number})`;
                 elements.suggestions.appendChild(option);
             });
-        } catch (error) {
-            console.error("Error loading surah list:", error);
-        }
+        } catch(e){ console.error(e); }
     }
-    
-    // Search surah by name
+
     async function searchSurah() {
         const input = elements.surahInput.value.trim();
-        if (!input) {
-            alert("Please enter a Surah name");
-            return;
-        }
-        
+        if(!input){ alert("Please enter a Surah name"); return; }
         setLoading(true);
-        
-        try {
-            // Find matching surah (case insensitive partial match)
-            const surah = currentState.allSurahs.find(s => 
-                s.englishName.toLowerCase().includes(input.toLowerCase()) ||
-                s.name.toLowerCase().includes(input.toLowerCase())
-            );
-            
-            if (!surah) {
-                alert("Surah not found. Try with English name");
-                return;
-            }
-            
-            // Store current surah
+        try{
+            const surah = currentState.allSurahs.find(s => s.englishName.toLowerCase().includes(input.toLowerCase()) || s.name.toLowerCase().includes(input.toLowerCase()));
+            if(!surah){ alert("Surah not found."); return; }
             currentState.surah = surah;
-            
-            // Fetch first ayah of the surah
             await fetchAyah(surah.number, 1);
-            
-            // Enable "View Full Surah" button
             elements.fullSurahBtn.disabled = false;
-        } catch (error) {
-            console.error("Error searching surah:", error);
-            displayError("Failed to load surah. Please try again.");
-        } finally {
-            setLoading(false);
-        }
+        } catch(e){ console.error(e); } finally { setLoading(false); }
     }
-    
-    // View full surah
+
     async function viewFullSurah() {
-        if (!currentState.surah) return;
-        
+        if(!currentState.surah) return;
         setLoading(true);
         elements.singleView.classList.add('hidden');
         elements.fullView.classList.remove('hidden');
-        
         try {
-            // Fetch the complete surah in Arabic
             const arabicResponse = await fetch(`${API_BASE}/surah/${currentState.surah.number}/${ARABIC_EDITION}`);
-            if (!arabicResponse.ok) throw new Error('Failed to load Arabic text');
-            
-            // Fetch the complete surah in English
             const translationResponse = await fetch(`${API_BASE}/surah/${currentState.surah.number}/${TRANSLATION_EDITION}`);
-            if (!translationResponse.ok) throw new Error('Failed to load translation');
-            
             const arabicData = await arabicResponse.json();
             const translationData = await translationResponse.json();
-            
             const arabicSurah = arabicData.data;
             const translationSurah = translationData.data;
-            
-            // Display surah title
             elements.surahTitle.textContent = `${arabicSurah.englishName} (${arabicSurah.name}) - ${arabicSurah.numberOfAyahs} verses`;
-            
-            // Display all verses with both Arabic and translation
             elements.fullSurahContainer.innerHTML = '';
-            
-            for (let i = 0; i < arabicSurah.ayahs.length; i++) {
+            for(let i=0;i<arabicSurah.ayahs.length;i++){
                 const arabicAyah = arabicSurah.ayahs[i];
                 const translationAyah = translationSurah.ayahs[i];
-                
                 const verseElement = document.createElement('div');
                 verseElement.className = 'verse-item';
                 verseElement.innerHTML = `
@@ -327,125 +278,66 @@
                 `;
                 elements.fullSurahContainer.appendChild(verseElement);
             }
-        } catch (error) {
-            console.error("Error loading full surah:", error);
-            elements.fullSurahContainer.innerHTML = "<p>Error loading surah. Please try again.</p>";
-        } finally {
-            setLoading(false);
-        }
+        } catch(e){ console.error(e); elements.fullSurahContainer.innerHTML="<p>Error loading surah.</p>"; } 
+        finally { setLoading(false); }
     }
-    
-    // Back to single verse view
-    function backToSingleVerse() {
-        elements.fullView.classList.add('hidden');
-        elements.singleView.classList.remove('hidden');
-    }
-    
-    // Fetch specific ayah with both Arabic and translation
-    async function fetchAyah(surahNumber, ayahNumber) {
-        try {
-            // Fetch Arabic text
+
+    function backToSingleVerse() { elements.fullView.classList.add('hidden'); elements.singleView.classList.remove('hidden'); }
+
+    async function fetchAyah(surahNumber, ayahNumber){
+        try{
             const arabicResponse = await fetch(`${API_BASE}/ayah/${surahNumber}:${ayahNumber}/${ARABIC_EDITION}`);
-            if (!arabicResponse.ok) throw new Error('Failed to load Arabic text');
-            
-            // Fetch English translation
             const translationResponse = await fetch(`${API_BASE}/ayah/${surahNumber}:${ayahNumber}/${TRANSLATION_EDITION}`);
-            if (!translationResponse.ok) throw new Error('Failed to load translation');
-            
             const arabicData = await arabicResponse.json();
             const translationData = await translationResponse.json();
-            
-            const arabicAyah = arabicData.data;
-            const translationAyah = translationData.data;
-            
-            // Store current ayah
-            currentState.ayah = arabicAyah;
-            
+            currentState.ayah = arabicData.data;
             displayContent(
-                arabicAyah.text,
-                translationAyah.text,
-                `${arabicAyah.surah.englishName} (${arabicAyah.surah.number}:${arabicAyah.numberInSurah})`,
-                translationAyah.edition.englishName
+                arabicData.data.text,
+                translationData.data.text,
+                `${arabicData.data.surah.englishName} (${arabicData.data.surah.number}:${arabicData.data.numberInSurah})`,
+                translationData.data.edition.englishName
             );
-        } catch (error) {
-            throw error;
-        }
+        }catch(e){ throw e; }
     }
-    
-    // Fetch random ayah with both Arabic and translation
-    async function loadRandomAyah() {
+
+    async function loadRandomAyah(){
         setLoading(true);
         elements.fullSurahBtn.disabled = true;
-        
-        try {
-            // Fetch random Arabic ayah
+        try{
             const arabicResponse = await fetch(`${API_BASE}/ayah/random/${ARABIC_EDITION}`);
-            if (!arabicResponse.ok) throw new Error('Failed to load Arabic text');
-            
             const arabicData = await arabicResponse.json();
             const arabicAyah = arabicData.data;
-            
-            // Fetch corresponding translation
             const translationResponse = await fetch(`${API_BASE}/ayah/${arabicAyah.surah.number}:${arabicAyah.numberInSurah}/${TRANSLATION_EDITION}`);
-            if (!translationResponse.ok) throw new Error('Failed to load translation');
-            
             const translationData = await translationResponse.json();
             const translationAyah = translationData.data;
-            
-            // Store current ayah and surah
             currentState.ayah = arabicAyah;
             currentState.surah = arabicAyah.surah;
-            
-            displayContent(
-                arabicAyah.text,
-                translationAyah.text,
-                `${arabicAyah.surah.englishName} (${arabicAyah.surah.number}:${arabicAyah.numberInSurah})`,
-                translationAyah.edition.englishName
-            );
-            
-            // Enable "View Full Surah" button
+            displayContent(arabicAyah.text, translationAyah.text, `${arabicAyah.surah.englishName} (${arabicAyah.surah.number}:${arabicAyah.numberInSurah})`, translationAyah.edition.englishName);
             elements.fullSurahBtn.disabled = false;
-        } catch (error) {
-            console.error("Error fetching random ayah:", error);
-            displayError("Failed to load verse. Please try again.");
-        } finally {
-            setLoading(false);
-        }
+        } catch(e){ console.error(e); displayError("Failed to load verse."); } 
+        finally { setLoading(false); }
     }
-    
-    // Display content in single verse view
-    function displayContent(arabic, translation, reference, edition) {
+
+    function displayContent(arabic, translation, reference, edition){
+        // Typewriter effect for Arabic
+        elements.arabic.classList.remove('typewriter');
+        void elements.arabic.offsetWidth; // reset animation
         elements.arabic.textContent = arabic;
+        elements.arabic.classList.add('typewriter');
+
         elements.translation.textContent = translation;
         elements.reference.textContent = `${reference} - ${edition}`;
-        
-        // Update share link
+
         const shareText = `${arabic}\n${translation}\n- ${reference} (${edition})`;
         elements.shareBtn.href = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
     }
-    
-    // Display error message
-    function displayError(message) {
-        elements.arabic.textContent = "——";
-        elements.translation.textContent = message;
-        elements.reference.textContent = "";
-    }
-    
-    // Toggle loading state
-    function setLoading(state) {
-        document.querySelector('.card').classList.toggle('loading', state);
-        elements.searchBtn.disabled = state;
-        elements.randomBtn.disabled = state;
-        elements.fullSurahBtn.disabled = state || !currentState.surah;
-    }
-    
-    // Toggle dark mode
-    function toggleDarkMode() {
-        document.body.classList.toggle('dark-mode');
-        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-    }
-    
-    // Start the app
+
+    function displayError(message){ elements.arabic.textContent="——"; elements.translation.textContent=message; elements.reference.textContent=""; }
+
+    function setLoading(state){ document.querySelector('.card').classList.toggle('loading', state); elements.searchBtn.disabled=state; elements.randomBtn.disabled=state; elements.fullSurahBtn.disabled=state||!currentState.surah; }
+
+    function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); localStorage.setItem('darkMode', document.body.classList.contains('dark-mode')); }
+
     init();
 </script>
 </body>
